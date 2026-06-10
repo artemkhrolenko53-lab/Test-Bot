@@ -9,6 +9,12 @@ from datetime import datetime
 
 # ========== КОНФИГУРАЦИЯ ==========
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+# Принудительно удаляем webhook при старте
+try:
+    bot.delete_webhook()
+    print("✅ Webhook удалён")
+except:
+    pass
 if not BOT_TOKEN:
     raise Exception("❌ BOT_TOKEN не найден!")
 
