@@ -4,13 +4,14 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
+import threading
 
 # ========== КОНФИГУРАЦИЯ ==========
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 if not BOT_TOKEN:
     raise Exception("❌ BOT_TOKEN не найден!")
 
-# ВАШ URL ПОСЛЕ ДЕПЛОЯ (замените!)
+# ВАШ URL (замените после деплоя)
 RENDER_URL = "https://test-bot.onrender.com"
 
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -36,7 +37,7 @@ HTML = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test Bot</title>
+    <title>Helix Bot</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body { font-family: system-ui; padding: 20px; text-align: center; background: #0a0a0f; color: white; }
@@ -98,14 +99,21 @@ def count(m):
         conn.commit()
         conn.close()
 
-# ========== ЗАПУСК (polling, без webhook) ==========
+# ========== ЗАПУСК ==========
+def run_flask():
+    app.run(host='0.0.0.0', port=8080, debug=False)
+
 if __name__ == '__main__':
-    # Запускаем Flask в отдельном потоке
-    import threading
-    def run_flask():
-        app.run(host='0.0.0.0', port=8080, debug=False)
+    # Удаляем webhook при старте
+    try:
+        bot.remove_webhook()
+        print("✅ Webhook удалён")
+    except:
+        pass
     
+    # Запускаем Flask в отдельном потоке
     threading.Thread(target=run_flask, daemon=True).start()
     
     print("🚀 Бот запущен (polling mode)!")
+    # Запускаем polling
     bot.infinity_polling(skip_pending=True)
