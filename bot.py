@@ -12,7 +12,7 @@ if not BOT_TOKEN:
     raise Exception("❌ BOT_TOKEN не найден!")
 
 # ВАШ URL (замените после деплоя)
-RENDER_URL = "https://test-bot.onrender.com"
+RENDER_URL = "https://test-bot-camo.onrender.com/"
 
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
