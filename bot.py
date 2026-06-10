@@ -4,15 +4,13 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
-import threading
-import time
 
 # ========== КОНФИГУРАЦИЯ ==========
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 if not BOT_TOKEN:
     raise Exception("❌ BOT_TOKEN не найден!")
 
-# ВАЖНО: ПОСЛЕ ДЕПЛОЯ ЗАМЕНИТЕ ЭТУ ССЫЛКУ!
+# ВАШ URL ПОСЛЕ ДЕПЛОЯ (замените!)
 RENDER_URL = "https://test-bot.onrender.com"
 
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -31,7 +29,7 @@ def init_db():
 
 init_db()
 
-# ========== ПРОСТОЙ HTML ==========
+# ========== HTML ==========
 HTML = """
 <!DOCTYPE html>
 <html>
@@ -48,7 +46,7 @@ HTML = """
     </style>
 </head>
 <body>
-    <h1>✅ Test Bot</h1>
+    <h1>✅ Helix Bot</h1>
     <div class="card">
         <div>Всего сообщений</div>
         <div class="stat" id="total">0</div>
@@ -76,7 +74,6 @@ def index():
 
 @app.route('/api/stats')
 def stats():
-    chat_id = request.args.get('chat_id')
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('SELECT SUM(messages) FROM users')
@@ -84,23 +81,12 @@ def stats():
     conn.close()
     return jsonify({'total': total})
 
-@app.route('/api/log', methods=['POST'])
-def log():
-    data = request.json
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute('INSERT INTO users (user_id, chat_id, name, messages) VALUES (?, ?, ?, 1) ON CONFLICT(user_id, chat_id) DO UPDATE SET messages = messages + 1', 
-              (data.get('user_id'), data.get('chat_id'), data.get('name')))
-    conn.commit()
-    conn.close()
-    return jsonify({'ok': True})
-
 # ========== КОМАНДЫ БОТА ==========
 @bot.message_handler(commands=['start'])
 def start(message):
     markup = InlineKeyboardMarkup()
     markup.add(InlineKeyboardButton("📱 Открыть панель", web_app=WebAppInfo(RENDER_URL)))
-    bot.reply_to(message, "✅ Бот работает! Нажми кнопку.", reply_markup=markup)
+    bot.send_message(message.chat.id, "✅ Бот работает! Нажми кнопку ниже:", reply_markup=markup)
 
 @bot.message_handler(func=lambda m: True)
 def count(m):
@@ -112,23 +98,14 @@ def count(m):
         conn.commit()
         conn.close()
 
-# ========== ЗАПУСК ==========
-def set_webhook():
-    time.sleep(2)
-    try:
-        bot.remove_webhook()
-        bot.set_webhook(url=f"{RENDER_URL}/webhook")
-        print(f"✅ Webhook установлен")
-    except Exception as e:
-        print(f"❌ Webhook error: {e}")
-
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    update = telebot.types.Update.de_json(request.get_data().decode('utf-8'))
-    bot.process_new_updates([update])
-    return 'OK', 200
-
+# ========== ЗАПУСК (polling, без webhook) ==========
 if __name__ == '__main__':
-    threading.Thread(target=set_webhook, daemon=True).start()
-    print("🚀 Бот запущен!")
-    app.run(host='0.0.0.0', port=8080)
+    # Запускаем Flask в отдельном потоке
+    import threading
+    def run_flask():
+        app.run(host='0.0.0.0', port=8080, debug=False)
+    
+    threading.Thread(target=run_flask, daemon=True).start()
+    
+    print("🚀 Бот запущен (polling mode)!")
+    bot.infinity_polling(skip_pending=True)
